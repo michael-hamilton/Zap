@@ -4,6 +4,7 @@ import {CodeJar} from 'codejar';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import 'highlight.js/styles/github-dark-dimmed.css';
+import {threeJSEditorOutput} from './output';
 import './zap.scss';
 
 
@@ -16,7 +17,7 @@ export default class Zap extends Component {
 			transpiled: '',
 			editorTab: 0,
 			tab: 0,
-			console: '',
+			console: [],
 			ifr: null,
 		};
 
@@ -35,68 +36,35 @@ export default class Zap extends Component {
 
 		window.addEventListener('message', (response) => {
 			if (response.data && response.data.source === 'iframe') {
-				this.setState({console: response.data.message});
+				let msg = response.data.message[0];
+				if(typeof(msg) === 'object') {
+					msg = JSON.stringify(msg);
+				}
+				this.setState({console: [...this.state.console, msg]});
 			}
 		});
+
 		const iframe = this.iframe.current;
 		const ifr = iframe.contentWindow || iframe.contentDocument.document || iframe.contentDocument;
 		this.setState({ifr})
 	}
 
 	transpile(value) {
-		const sourceCode = value;
-		this.setState({sourceCode});
-		const options = { presets: ['es2015-loose'], plugins: [] }
-		const { code } = transform(sourceCode, options);
-		this.setState({transpiled: code});
-		const source = /* html */ `
-      <html>
-      	<style>
-      	 *, * * {
-      	 	box-sizing: border-box;
-      	 	margin: 0;
-      	 	padding: 0;
-      	 	position: relative;
-      	 }
-      	 html, body, #canvas {
-      	 	height: 100%;
-      	 	overflow: hidden;
-      	 	width: 100%;
-      	 }
-				</style>
-				<head>
-				</head>
-				<body>
-					<script>
-					const _log = console.log;
-					console.log = (...rest) => {
-						window.parent.postMessage(
-							{
-								source: 'iframe',
-								message: JSON.stringify(rest),
-							},
-							'*'
-						);
-						_log.apply(console);
-					};
-				</script>
-				<script src="https://ajax.googleapis.com/ajax/libs/threejs/r84/three.min.js"></script>
-				<script>
-					const renderer = new THREE.WebGLRenderer();
-					renderer.setSize( window.innerWidth, window.innerHeight );
-					document.body.appendChild( renderer.domElement );
-
-					window.addEventListener( 'resize', () => {
-						camera.aspect = window.innerWidth / window.innerHeight;
-						camera.updateProjectionMatrix();
-						renderer.setSize( window.innerWidth, window.innerHeight );
-					}, false );
-					${code}
-				</script>
-				</body>
-      </html>
-    `
-		this.iframe.current.srcdoc = source
+		if(value !== this.state.sourceCode) {
+			this.setState({console: []}, () => {
+				try {
+					const sourceCode = value;
+					this.setState({sourceCode});
+					const options = {presets: ['es2015-loose'], plugins: []}
+					const {code} = transform(sourceCode, options);
+					this.setState({transpiled: code});
+					this.iframe.current.srcdoc = threeJSEditorOutput(code);
+				} catch (err) {
+					this.setState({console: [...this.state.console, err]})
+					this.iframe.current.srcdoc = threeJSEditorOutput(err);
+				}
+			});
+		}
 	}
 
 	render() {
@@ -125,23 +93,27 @@ export default class Zap extends Component {
 						</ul>
 					</div>
 
-					<div className='tabContentWrapper'>
+					<div className='bottomContentWrapper'>
 						{
 							this.state.tab === 0 ?
-								<div className='tabContent'>
-									<pre className='consoleOutputWrapper'>
-										<code className='language-javascript'>
-											{this.state.console}
-										</code>
-									</pre>
+								<div className='tabContentWrapper'>
+									<div className='tabContent'>
+										<pre className='consoleOutputWrapper'>
+											<code className='language-javascript'>
+												{this.state.console.map(msg => `${msg}\n`)}
+											</code>
+										</pre>
+									</div>
 								</div>
 								:
-								<div className='tabContent'>
-									<pre className='transpiledCodeWrapper'>
-										<code className='language-javascript'>
-											{this.state.transpiled}
-										</code>
-									</pre>
+								<div className='tabContentWrapper'>
+									<div className='tabContent'>
+										<pre className='transpiledCodeWrapper'>
+											<code className='language-javascript'>
+												{this.state.transpiled}
+											</code>
+										</pre>
+									</div>
 								</div>
 						}
 					</div>

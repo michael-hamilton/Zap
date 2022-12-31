@@ -64,27 +64,40 @@
 	flex-direction: column;
 	overflow-y: hidden;
 
-	.tabContentWrapper {
-		background-color: #555555;
+	.bottomContentWrapper {
 		display: flex;
 		flex: 1;
 		overflow-y: hidden;
 
-		.tabContent {
+		.tabContentWrapper {
+			background-color: #555555;
 			display: flex;
 			flex: 1;
-			height: 100%;
+			overflow-y: hidden;
 
-			.transpiledCodeWrapper, .consoleOutputWrapper {
-				color: #ffffff;
+			.tabContent {
 				display: flex;
 				flex: 1;
 				height: 100%;
-				overflow-y: scroll;
 
-				code {
-					background-color: #555555;
+				.consoleOutputWrapper {
+					code {
+						display: flex;
+						flex-direction: column-reverse;
+					}
+				}
+
+				.transpiledCodeWrapper, .consoleOutputWrapper {
+					color: #ffffff;
+					display: flex;
 					flex: 1;
+					height: 100%;
+					overflow-y: scroll;
+
+					code {
+						background-color: #555555;
+						flex: 1;
+					}
 				}
 			}
 		}
