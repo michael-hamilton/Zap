@@ -41,53 +41,59 @@ export default class Zap extends Component {
 		const iframe = this.iframe.current;
 		const ifr = iframe.contentWindow || iframe.contentDocument.document || iframe.contentDocument;
 		this.setState({ifr})
-
-		ifr.document.open();
-		ifr.document.write(`
-			<p id="a">hello</p>
-			<script>
-				const _log = console.log;
-				console.log = (...rest) => {
-					window.parent.postMessage(
-						{
-							source: 'iframe',
-							message: JSON.stringify(rest),
-						},
-						'*'
-					);
-					_log.apply(console, arguments);
-				};
-			</script>
-		`);
-		ifr.document.close();
 	}
 
 	transpile(value) {
 		const sourceCode = value;
 		this.setState({sourceCode});
-		const options = { presets: ['es2015-loose'] }
+		const options = { presets: ['es2015-loose'], plugins: [] }
 		const { code } = transform(sourceCode, options);
 		this.setState({transpiled: code});
 		const source = /* html */ `
       <html>
-      <head>
-      </head>
-      <body>
-        <script>
-				const _log = console.log;
-				console.log = (...rest) => {
-					window.parent.postMessage(
-						{
-							source: 'iframe',
-							message: JSON.stringify(rest),
-						},
-						'*'
-					);
-					_log.apply(console, arguments);
-				};
-			</script>
-			<script>${code}</script>
-      </body>
+      	<style>
+      	 *, * * {
+      	 	box-sizing: border-box;
+      	 	margin: 0;
+      	 	padding: 0;
+      	 	position: relative;
+      	 }
+      	 html, body, #canvas {
+      	 	height: 100%;
+      	 	overflow: hidden;
+      	 	width: 100%;
+      	 }
+				</style>
+				<head>
+				</head>
+				<body>
+					<script>
+					const _log = console.log;
+					console.log = (...rest) => {
+						window.parent.postMessage(
+							{
+								source: 'iframe',
+								message: JSON.stringify(rest),
+							},
+							'*'
+						);
+						_log.apply(console);
+					};
+				</script>
+				<script src="https://ajax.googleapis.com/ajax/libs/threejs/r84/three.min.js"></script>
+				<script>
+					const renderer = new THREE.WebGLRenderer();
+					renderer.setSize( window.innerWidth, window.innerHeight );
+					document.body.appendChild( renderer.domElement );
+
+					window.addEventListener( 'resize', () => {
+						camera.aspect = window.innerWidth / window.innerHeight;
+						camera.updateProjectionMatrix();
+						renderer.setSize( window.innerWidth, window.innerHeight );
+					}, false );
+					${code}
+				</script>
+				</body>
       </html>
     `
 		this.iframe.current.srcdoc = source
