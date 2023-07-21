@@ -1,10 +1,11 @@
 import React, {Component, createRef} from 'react';
+import { FaPlay } from 'react-icons/fa';
 import {transform} from '@babel/standalone';
 import {CodeJar} from 'codejar';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import 'highlight.js/styles/github-dark-dimmed.css';
-import {threeJSEditorOutput} from './output';
+import {canvasEditorOutput} from './output';
 import './zap.scss';
 
 
@@ -23,6 +24,7 @@ export default class Zap extends Component {
 
 		this.iframe = createRef();
 		this.editor = createRef();
+		this.jar;
 	}
 
 	componentDidMount() {
@@ -31,8 +33,8 @@ export default class Zap extends Component {
 		});
 		hljs.registerLanguage('javascript', javascript);
 		hljs.highlightAll();
-		const jar = CodeJar(this.editor.current, hljs.highlightElement, { preserveIdent: false });
-		jar.onUpdate(this.transpile.bind(this));
+
+		this.jar = CodeJar(this.editor.current, hljs.highlightElement, { preserveIdent: false });
 
 		window.addEventListener('message', (response) => {
 			if (response.data && response.data.source === 'iframe') {
@@ -44,27 +46,32 @@ export default class Zap extends Component {
 			}
 		});
 
+		window.addEventListener('keydown', (e) => {
+			if(e.key === 'r' || e.key === 'R' && e.ctrlKey === true) {
+				this.transpile();
+			}
+		});
+
 		const iframe = this.iframe.current;
 		const ifr = iframe.contentWindow || iframe.contentDocument.document || iframe.contentDocument;
 		this.setState({ifr})
 	}
 
-	transpile(value) {
-		if(value !== this.state.sourceCode) {
-			this.setState({console: []}, () => {
-				try {
-					const sourceCode = value;
-					this.setState({sourceCode});
-					const options = {presets: ['es2015-loose'], plugins: []}
-					const {code} = transform(sourceCode, options);
-					this.setState({transpiled: code});
-					this.iframe.current.srcdoc = threeJSEditorOutput(code);
-				} catch (err) {
-					this.setState({console: [...this.state.console, err]})
-					this.iframe.current.srcdoc = threeJSEditorOutput(err);
-				}
-			});
-		}
+	transpile() {
+		const value = this.jar.toString()
+		this.setState({console: []}, () => {
+			try {
+				const sourceCode = value;
+				this.setState({sourceCode});
+				const options = {presets: ['es2015-loose'], plugins: []}
+				const {code} = transform(sourceCode, options);
+				this.setState({transpiled: code});
+				this.iframe.current.srcdoc = canvasEditorOutput(code);
+			} catch (err) {
+				this.setState({console: [...this.state.console, err]})
+				this.iframe.current.srcdoc = canvasEditorOutput(err);
+			}
+		});
 	}
 
 	render() {
@@ -73,8 +80,13 @@ export default class Zap extends Component {
 				<div className='topWrapper'>
 					<div className='editorWrapper'>
 						<div className='tabWrapper'>
-							<ul>
+							<ul className='documentList'>
 								<li className={this.state.editorTab === 0 ? 'active' : ''} onClick={() => this.setState({editorTab: 0})}>Project</li>
+							</ul>
+							<ul className='controlsList'>
+								<button onClick={this.transpile.bind(this)}>
+									<FaPlay />
+								</button>
 							</ul>
 						</div>
 						<div className='editor javascript' ref={this.editor} />
